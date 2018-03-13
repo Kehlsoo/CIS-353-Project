@@ -1,0 +1,828 @@
+SQL> SET ECHO ON
+SQL> /*
+SQL> CIS 353
+SQL>  - Database Design Project
+SQL> Cade Baker
+SQL> Kehlsey Lewis
+SQL> Filipe Castanheira
+SQL> Owen Dunn
+SQL> */
+SQL> -- Drop the tables (in case they already exist)
+SQL> --
+SQL> DROP TABLE Customer	 CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> DROP TABLE Customer_Phones  CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> DROP TABLE Booking 	 CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> DROP TABLE Employee	 CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> DROP TABLE Billing 	 CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> DROP TABLE Vehicle 	 CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> DROP TABLE Manages 	 CASCADE CONSTRAINTS;
+
+Table dropped.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE  Customer
+  2  (
+  3  custID	    INTEGER,
+  4  firstName	    CHAR(15)	NOT NULL,
+  5  lastName	    CHAR(15)	NOT NULL,
+  6  driverLicense  CHAR(20)	NOT NULL,
+  7  DOB	    DATE	NOT NULL,
+  8  --
+  9  -- cIC1_KEY: custIDs are the primary keys in the table
+ 10  CONSTRAINT cIC1_KEY PRIMARY KEY (custID),
+ 11  --
+ 12  -- cIC2_AGE: customer must be at least 21
+ 13  CONSTRAINT cIC2_AGE CHECK (DOB < TO_DATE('12/5/1996', 'MM/DD/YYYY'))
+ 14  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE Customer_Phones
+  2  (
+  3  custID	    INTEGER,
+  4  phoneNum	    CHAR(13)   NOT NULL,
+  5  --
+  6  -- cpIC1_KEY: custID and phoneVal is the primary key in the table
+  7  CONSTRAINT cpIC1_KEY PRIMARY KEY (custID, phoneNum),
+  8  --
+  9  -- cpIC2_FKEY: custID references custID in Customer
+ 10  CONSTRAINT cpIC2_FKEY FOREIGN KEY (custID) REFERENCES Customer(custID)
+ 11  			ON DELETE CASCADE
+ 12  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE Employee
+  2  (
+  3  employeeSSN    INTEGER    NOT NULL,
+  4  firstName	    CHAR(15)   NOT NULL,
+  5  lastName	    CHAR(15)   NOT NULL,
+  6  sex	    CHAR(6)    NOT NULL,
+  7  salary	    INTEGER    NOT NULL,
+  8  DOB	    DATE       NOT NULL,
+  9  vehicleVIN     CHAR(17),
+ 10  inspectDate    DATE,
+ 11  inspectResult  CHAR(4),
+ 12  --
+ 13  -- eIC1_KEY: employeeSSN is the primary key in the table
+ 14  CONSTRAINT eIC1_KEY PRIMARY KEY (employeeSSN),
+ 15  -- eIC2_SSNCHECK: Check that the employee SSN is 9 digits, contains
+ 16  -- only digits, and is in range 100000000-999999999
+ 17  CONSTRAINT eIC2_SSNCHECK CHECK (employeeSSN > 100000000 AND employeeSSN < 999999999),
+ 18  --
+ 19  -- eIC3_AGE: Check if the employee is at least 18
+ 20  CONSTRAINT eIC3 CHECK (DOB < TO_DATE('11/30/1999', 'MM/DD/YYYY'))
+ 21  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE  Vehicle
+  2  (
+  3  vin	  CHAR(17)	NOT NULL,
+  4  make	  CHAR(15)	NOT NULL,
+  5  model	  CHAR(15)	NOT NULL,
+  6  year	  INTEGER	NOT NULL,
+  7  rate	  INTEGER	NOT NULL,
+  8  mileage	  INTEGER	NOT NULL,
+  9  color	  CHAR(10)	NOT NULL,
+ 10  --
+ 11  -- vIC1_KEY: The vin is the primary key
+ 12  CONSTRAINT vIC1_KEY PRIMARY KEY (vin),
+ 13  --
+ 14  -- vIC2_AUDICHECK: If make is Audi, the rate must be greater than $100
+ 15  CONSTRAINT vIC2_AUDIRATE CHECK (NOT(make = 'Audi' AND rate < 500))
+ 16  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE Booking
+  2  (
+  3  bookingID	    INTEGER,
+  4  startDate	    DATE       NOT NULL,
+  5  endDate	    DATE       NOT NULL,
+  6  carVIN	    CHAR(17)   NOT NULL,
+  7  custID	    INTEGER    NOT NULL,
+  8  employeeSSN    INTEGER    NOT NULL,
+  9  --
+ 10  -- bIC1_KEY: bookingID is the primary key in the table
+ 11  CONSTRAINT bIC1_KEY PRIMARY KEY (bookingID),
+ 12  --
+ 13  -- bIC2_FKEY: carVin references carVIn in Vehicle
+ 14  CONSTRAINT bIC2_FKEY FOREIGN KEY (carVIN) REFERENCES Vehicle(vin)
+ 15  			ON DELETE SET NULL,
+ 16  --
+ 17  -- bIC3_FKEY: custID references custID in Customer
+ 18  CONSTRAINT bIC3_FKEY FOREIGN KEY (custID) REFERENCES Customer(custID)
+ 19  			ON DELETE CASCADE,
+ 20  --
+ 21  -- bIC4_FKEY: employeeSSN references employeeSSN in Employee
+ 22  CONSTRAINT bIC4_FKEY FOREIGN KEY (employeeSSN) REFERENCES Employee(employeeSSN)
+ 23  			ON DELETE SET NULL,
+ 24  --
+ 25  -- bIC5_VAIDDATE: ensure the start date is before the end date
+ 26  CONSTRAINT bIC5_VAIDDATE CHECK (startDate < endDate)
+ 27  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE  Billing
+  2  (
+  3  bookingID	     INTEGER	NOT NULL,
+  4  billAddress     CHAR(50),
+  5  amountOwed      INTEGER,
+  6  amountPaid      INTEGER,
+  7  creditCardNum   CHAR(19)	NOT NULL,
+  8  creditCardType  CHAR(10)	NOT NULL,
+  9  dateDue	     DATE	DEFAULT NULL,
+ 10  --
+ 11  -- biIC1_BILLWITHID: Every bill must be tied to a booking id.
+ 12  CONSTRAINT biIC1_FKEY FOREIGN KEY (bookingID) REFERENCES Booking(bookingID)
+ 13  		ON DELETE CASCADE,
+ 14  --
+ 15  -- biIC2_KEY: The bookingID and dateDue are the primary keys
+ 16  CONSTRAINT biIC2_KEY PRIMARY KEY (bookingID,dateDue),
+ 17  --
+ 18  -- biIC3_AMTLOGIC: amountPaid is less than or equal to amountOwed
+ 19  CONSTRAINT biIC3_AMTLOGIC CHECK (amountPaid <= amountOwed),
+ 20  --
+ 21  -- biIC4_CARDTYPE: Credit card has to be either Mastercard, Visa, AMEX, or Discover
+ 22  CONSTRAINT biIC4_CARDTYPE CHECK (creditCardType = 'Mastercard' OR creditCardType = 'Visa' OR creditCardType = 'AMEX' OR
+ 23  								     creditCardType = 'Discover'),
+ 24  --
+ 25  -- biIC5_VALIDAMT: Amount paid must be greater than or equal to zero
+ 26  CONSTRAINT biIC5_VALIDAMT CHECK (amountPaid >= 0)
+ 27  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE Manages
+  2  (
+  3  employeeSSN    INTEGER    NOT NULL,
+  4  managerSSN     INTEGER,
+  5  --
+  6  -- mIC1_FKEY: employeeSSN references Employee ssn from Employee table
+  7  CONSTRAINT mIC1_FKEY FOREIGN KEY (employeeSSN) REFERENCES Employee(employeeSSN),
+  8  --
+  9  -- mIC2_FKEY: managerSSN references Employee ssn from Employee table
+ 10  CONSTRAINT mIC2_FKEY FOREIGN KEY (managerSSN) REFERENCES Employee(employeeSSN)
+ 11  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> SET FEEDBACK OFF
+SQL> --< The INSERT statements that populate the tables> Important: Keep the number of rows in each table small enough so that the results of your queries can be verified by hand. See the Sailors database as an example.
+SQL> --
+SQL> ----------------------------------------------------------------------------------------
+SQL> ----------------------------------------------------------------------------------------
+SQL> INSERT INTO Customer VALUES (29, 'John',	  'von Grollmann', 'B261462061547', TO_DATE('08/22/1953', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (89, 'Crawford', 'Dowers',	   'B676624379988', TO_DATE('03/22/1955', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (88, 'Lars',	  'Ingram',	   'B115423769456', TO_DATE('04/29/1958', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (23, 'Con',	  'Goodhand',	   'B773290897872', TO_DATE('10/10/1965', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (55, 'Gray',	  'Shorton',	   'B139745073325', TO_DATE('06/03/1957', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (4,  'Carter',   'Redferne',	   'B248616467291', TO_DATE('03/08/1968', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (9,  'Meriel',   'Marland',	   'B620176458845', TO_DATE('04/01/1994', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (56, 'Gena',	  'Wilkowski',	   'B952432544942', TO_DATE('05/24/1952', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (98, 'Tim',	  'Daile',	   'B603397588072', TO_DATE('06/20/1965', 'MM/DD/YYYY'));
+SQL> INSERT INTO Customer VALUES (54, 'Hilarius', 'Ranyard',	   'B117685754408', TO_DATE('09/10/1973', 'MM/DD/YYYY'));
+SQL> ----------------------------------------------------------------------------------------
+SQL> ----------------------------------------------------------------------------------------
+SQL> INSERT INTO Customer_Phones VALUES (29, '(810)224-2552');
+SQL> INSERT INTO Customer_Phones VALUES (29, '(810)443-2453');
+SQL> INSERT INTO Customer_Phones VALUES (89, '(813)221-6798');
+SQL> INSERT INTO Customer_Phones VALUES (88, '(443)225-3532');
+SQL> INSERT INTO Customer_Phones VALUES (23, '(228)664-2246');
+SQL> INSERT INTO Customer_Phones VALUES (55, '(390)221-4598');
+SQL> INSERT INTO Customer_Phones VALUES (4,  '(332)789-2683');
+SQL> INSERT INTO Customer_Phones VALUES (9,  '(887)442-5731');
+SQL> INSERT INTO Customer_Phones VALUES (56, '(378)221-7743');
+SQL> INSERT INTO Customer_Phones VALUES (98, '(554)221-7785');
+SQL> INSERT INTO Customer_Phones VALUES (54, '(889)446-2566');
+SQL> ----------------------------------------------------------------------------------------
+SQL> ----------------------------------------------------------------------------------------
+SQL> INSERT INTO Employee VALUES (841606366, 'Hewett',	 'Sumption',   'Male',	 '109381.39',  TO_DATE('07/26/1967', 'MM/DD/YYYY'),
+  2  							     '1HL456234050304H1', TO_DATE('05/22/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> INSERT INTO Employee VALUES (949064604, 'Mack',	 'Gauld',      'Male',	 '76245.54',   TO_DATE('03/26/1976', 'MM/DD/YYYY'),
+  2  							     '2E245WB330G1394FF', TO_DATE('02/28/2017', 'MM/DD/YYYY'), 'Fail');
+SQL> INSERT INTO Employee VALUES (367343136, 'Juana',	 'Jeannot',    'Female', '132272.35',  TO_DATE('10/14/1999', 'MM/DD/YYYY'),
+  2  							     'HIT1BYE3803034M21', TO_DATE('05/12/2017', 'MM/DD/YYYY'), 'Fail');
+SQL> INSERT INTO Employee VALUES (739865735, 'Donielle', 'McGuggy',    'Female', '59397.76',   TO_DATE('09/9/1971',  'MM/DD/YYYY'),
+  2  							     '1HL456234050304H1', TO_DATE('07/14/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> INSERT INTO Employee VALUES (311710664, 'Miller',	 'Guinan',     'Male',	 '29490.82',   TO_DATE('01/23/1967', 'MM/DD/YYYY'),
+  2  							     '5BL456REBMUN0NV14', TO_DATE('11/12/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> INSERT INTO Employee VALUES (599405184, 'Fenelia',  'Lambis',     'Female', '65860.71',   TO_DATE('05/28/1958', 'MM/DD/YYYY'),
+  2  							     'F56789TETTF030413', TO_DATE('11/20/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> INSERT INTO Employee VALUES (567169645, 'Shir',	 'Bridgwater', 'Female', '64136.82',   TO_DATE('08/8/1994',  'MM/DD/YYYY'),
+  2  							     '2E245WB330G1394FF', TO_DATE('10/04/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> INSERT INTO Employee VALUES (924747806, 'Edouard',  'Buckthorpe', 'Male',	 '42483.51',   TO_DATE('04/6/1950',  'MM/DD/YYYY'),
+  2  							     'VROOM62340VR0M229', TO_DATE('11/25/2017', 'MM/DD/YYYY'), 'Fail');
+SQL> INSERT INTO Employee VALUES (344276769, 'Riley',	 'McKeighen',  'Male',	 '147753.21',  TO_DATE('08/1/1969',  'MM/DD/YYYY'),
+  2  							     'HIT1BYE3803034M21', TO_DATE('11/28/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> INSERT INTO Employee VALUES (713782826, 'Fletcher', 'Ingerfield', 'Male',	 '133674.79',  TO_DATE('12/5/1965',  'MM/DD/YYYY'),
+  2  							     '2FL24673203384SXN', TO_DATE('11/30/2017', 'MM/DD/YYYY'), 'Pass');
+SQL> ----------------------------------------------------------------------------------------
+SQL> ----------------------------------------------------------------------------------------
+SQL> INSERT INTO Vehicle VALUES ('1HL456234050304H1', 'Audi',  'R8',	       2017, 500, 500,	  'black');
+SQL> INSERT INTO Vehicle VALUES ('2E245WB330G1394FF', 'Chevy', 'Equinox',      2017, 90,  10000,  'white');
+SQL> INSERT INTO Vehicle VALUES ('F56789TETTF030413', 'Chevy', 'Malibu',       2014, 70,  5000,   'red');
+SQL> INSERT INTO Vehicle VALUES ('5BL456REBMUN0NV14', 'Ford',  'Fusion',       2014, 70,  30000,  'silver');
+SQL> INSERT INTO Vehicle VALUES ('HIT1BYE3803034M21', 'Gmc',   'Sierra',       2017, 110, 6000,   'black');
+SQL> INSERT INTO Vehicle VALUES ('VROOM62340VR0M229', 'Dodge', 'Charger',      2016, 100, 10000,  'red');
+SQL> INSERT INTO Vehicle VALUES ('2FL24673203384SXN', 'Dodge', 'Grand Caravan',2015, 60,  100000, 'silver');
+SQL> ----------------------------------------------------------------------------------------
+SQL> ----------------------------------------------------------------------------------------
+SQL> --Booking(bookingID, startDate, endDate, vehicleVIN, custID, employeeSSN)
+SQL> INSERT INTO Booking VALUES (70, TO_DATE('11/22/2017', 'MM/DD/YYYY'), TO_DATE('12/01/2017', 'MM/DD/YYYY'),
+  2  							     'F56789TETTF030413', 29, '841606366');
+SQL> INSERT INTO Booking VALUES (69, TO_DATE('12/15/2017', 'MM/DD/YYYY'), TO_DATE('12/28/2017', 'MM/DD/YYYY'),
+  2  							     '2E245WB330G1394FF', 89, '949064604');
+SQL> INSERT INTO Booking VALUES (68, TO_DATE('10/15/2016', 'MM/DD/YYYY'), TO_DATE('11/01/2016', 'MM/DD/YYYY'),
+  2  							     '5BL456REBMUN0NV14', 88, '367343136');
+SQL> INSERT INTO Booking VALUES (67, TO_DATE('06/01/2016', 'MM/DD/YYYY'), TO_DATE('06/15/2016', 'MM/DD/YYYY'),
+  2  							     'HIT1BYE3803034M21', 23, '739865735');
+SQL> INSERT INTO Booking VALUES (66, TO_DATE('03/24/2016', 'MM/DD/YYYY'), TO_DATE('03/29/2017', 'MM/DD/YYYY'),
+  2  							     'VROOM62340VR0M229', 55, '311710664');
+SQL> INSERT INTO Booking VALUES (65, TO_DATE('02/21/2016', 'MM/DD/YYYY'), TO_DATE('02/28/2017', 'MM/DD/YYYY'),
+  2  							     '2FL24673203384SXN', 4, '567169645');
+SQL> INSERT INTO Booking VALUES (64, TO_DATE('10/24/2015', 'MM/DD/YYYY'), TO_DATE('10/26/2015', 'MM/DD/YYYY'),
+  2  							     '1HL456234050304H1', 9, '924747806');
+SQL> INSERT INTO Booking VALUES (63, TO_DATE('02/10/2017', 'MM/DD/YYYY'), TO_DATE('02/23/2017', 'MM/DD/YYYY'),
+  2  							     '1HL456234050304H1', 9, '344276769');
+SQL> ----------------------------------------------------------------------------------------
+SQL> ----------------------------------------------------------------------------------------
+SQL> --Billing(bookingID, billAddress, amountOwed, amountPaid, CCNum, CCType, dateDue)
+SQL> 
+SQL> INSERT INTO Billing VALUES (70, '6815 Driving Lane',	 630, 500,  '1234567812345678', 'Visa',
+  2  							     TO_DATE('12/01/2017','MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (69, '9501 Candycane lane',	 1170,	50,   '2234567812345678', 'Visa',
+  2  							     TO_DATE('11/28/2017', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (68, '6915 Silverlake rd',	 1190, 1000, '3234567812345678', 'Mastercard',
+  2  							     TO_DATE('11/01/2016', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (67, '5013 48 ave',		 1540, 1000, '4234567812345678', 'Visa',
+  2  							     TO_DATE('06/15/2016', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (66, '4011 Lake Michigan Drive', 500, 500,  '5234567812345678', 'Mastercard',
+  2  							     TO_DATE('03/29/2017', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (65, '4596 Pierce st',		 420,  200,  '6234567812345679', 'Discover',
+  2  							     TO_DATE('01/15/2017', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (64, '5162 Garfield rd',	 1000,	50,   '7234567812345678', 'AMEX',
+  2  							     TO_DATE('10/26/2015', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (63, '2316 Bear Lake rd',	 6500, 3000, '8234567812345678', 'Visa',
+  2  							     TO_DATE('02/23/2017', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (64, '7546 Peirce st',		 3000, 600,  '9234567812345677', 'Discover',
+  2  							     TO_DATE('09/22/2016', 'MM/DD/YYYY'));
+SQL> INSERT INTO Billing VALUES (65, '4940 Lake Michigan Drive', 220,  0,    '1124567812345678', 'Mastercard',
+  2  							     TO_DATE('02/28/2017', 'MM/DD/YYYY'));
+SQL> ------------------------------------------------------------------------
+SQL> ------------------------------------------------------------------------
+SQL> INSERT INTO Manages VALUES (841606366, 713782826);
+SQL> INSERT INTO Manages VALUES (949064604, 841606366);
+SQL> INSERT INTO Manages VALUES (367343136, 713782826);
+SQL> INSERT INTO Manages VALUES (739865735, 367343136);
+SQL> INSERT INTO Manages VALUES (311710664, 739865735);
+SQL> INSERT INTO Manages VALUES (311710664, 367343136);
+SQL> INSERT INTO Manages VALUES (599405184, 841606366);
+SQL> INSERT INTO Manages VALUES (567169645, 949064604);
+SQL> INSERT INTO Manages VALUES (924747806, 949064604);
+SQL> INSERT INTO Manages VALUES (344276769, NULL);
+SQL> INSERT INTO Manages VALUES (713782826, NULL);
+SQL> --
+SQL> --
+SQL> SET FEEDBACK ON
+SQL> COMMIT;
+
+Commit complete.
+
+SQL> -- < One query (per table) of the form: SELECT * FROM table; in order to print out your database >
+SQL> -- Print out the database state.
+SQL> SELECT * FROM Customer;
+
+    CUSTID FIRSTNAME       LASTNAME        DRIVERLICENSE        DOB             
+---------- --------------- --------------- -------------------- ---------       
+        29 John            von Grollmann   B261462061547        22-AUG-53       
+        89 Crawford        Dowers          B676624379988        22-MAR-55       
+        88 Lars            Ingram          B115423769456        29-APR-58       
+        23 Con             Goodhand        B773290897872        10-OCT-65       
+        55 Gray            Shorton         B139745073325        03-JUN-57       
+         4 Carter          Redferne        B248616467291        08-MAR-68       
+         9 Meriel          Marland         B620176458845        01-APR-94       
+        56 Gena            Wilkowski       B952432544942        24-MAY-52       
+        98 Tim             Daile           B603397588072        20-JUN-65       
+        54 Hilarius        Ranyard         B117685754408        10-SEP-73       
+
+10 rows selected.
+
+SQL> SELECT * FROM Customer_Phones;
+
+    CUSTID PHONENUM                                                             
+---------- -------------                                                        
+         4 (332)789-2683                                                        
+         9 (887)442-5731                                                        
+        23 (228)664-2246                                                        
+        29 (810)224-2552                                                        
+        29 (810)443-2453                                                        
+        54 (889)446-2566                                                        
+        55 (390)221-4598                                                        
+        56 (378)221-7743                                                        
+        88 (443)225-3532                                                        
+        89 (813)221-6798                                                        
+        98 (554)221-7785                                                        
+
+11 rows selected.
+
+SQL> SELECT * FROM Employee;
+
+EMPLOYEESSN FIRSTNAME       LASTNAME        SEX        SALARY DOB               
+----------- --------------- --------------- ------ ---------- ---------         
+VEHICLEVIN        INSPECTDA INSP                                                
+----------------- --------- ----                                                
+  841606366 Hewett          Sumption        Male       109381 26-JUL-67         
+1HL456234050304H1 22-MAY-17 Pass                                                
+                                                                                
+  949064604 Mack            Gauld           Male        76246 26-MAR-76         
+2E245WB330G1394FF 28-FEB-17 Fail                                                
+                                                                                
+  367343136 Juana           Jeannot         Female     132272 14-OCT-99         
+HIT1BYE3803034M21 12-MAY-17 Fail                                                
+                                                                                
+
+EMPLOYEESSN FIRSTNAME       LASTNAME        SEX        SALARY DOB               
+----------- --------------- --------------- ------ ---------- ---------         
+VEHICLEVIN        INSPECTDA INSP                                                
+----------------- --------- ----                                                
+  739865735 Donielle        McGuggy         Female      59398 09-SEP-71         
+1HL456234050304H1 14-JUL-17 Pass                                                
+                                                                                
+  311710664 Miller          Guinan          Male        29491 23-JAN-67         
+5BL456REBMUN0NV14 12-NOV-17 Pass                                                
+                                                                                
+  599405184 Fenelia         Lambis          Female      65861 28-MAY-58         
+F56789TETTF030413 20-NOV-17 Pass                                                
+                                                                                
+
+EMPLOYEESSN FIRSTNAME       LASTNAME        SEX        SALARY DOB               
+----------- --------------- --------------- ------ ---------- ---------         
+VEHICLEVIN        INSPECTDA INSP                                                
+----------------- --------- ----                                                
+  567169645 Shir            Bridgwater      Female      64137 08-AUG-94         
+2E245WB330G1394FF 04-OCT-17 Pass                                                
+                                                                                
+  924747806 Edouard         Buckthorpe      Male        42484 06-APR-50         
+VROOM62340VR0M229 25-NOV-17 Fail                                                
+                                                                                
+  344276769 Riley           McKeighen       Male       147753 01-AUG-69         
+HIT1BYE3803034M21 28-NOV-17 Pass                                                
+                                                                                
+
+EMPLOYEESSN FIRSTNAME       LASTNAME        SEX        SALARY DOB               
+----------- --------------- --------------- ------ ---------- ---------         
+VEHICLEVIN        INSPECTDA INSP                                                
+----------------- --------- ----                                                
+  713782826 Fletcher        Ingerfield      Male       133675 05-DEC-65         
+2FL24673203384SXN 30-NOV-17 Pass                                                
+                                                                                
+
+10 rows selected.
+
+SQL> SELECT * FROM Vehicle;
+
+VIN               MAKE            MODEL                 YEAR       RATE         
+----------------- --------------- --------------- ---------- ----------         
+   MILEAGE COLOR                                                                
+---------- ----------                                                           
+1HL456234050304H1 Audi            R8                    2017        500         
+       500 black                                                                
+                                                                                
+2E245WB330G1394FF Chevy           Equinox               2017         90         
+     10000 white                                                                
+                                                                                
+F56789TETTF030413 Chevy           Malibu                2014         70         
+      5000 red                                                                  
+                                                                                
+
+VIN               MAKE            MODEL                 YEAR       RATE         
+----------------- --------------- --------------- ---------- ----------         
+   MILEAGE COLOR                                                                
+---------- ----------                                                           
+5BL456REBMUN0NV14 Ford            Fusion                2014         70         
+     30000 silver                                                               
+                                                                                
+HIT1BYE3803034M21 Gmc             Sierra                2017        110         
+      6000 black                                                                
+                                                                                
+VROOM62340VR0M229 Dodge           Charger               2016        100         
+     10000 red                                                                  
+                                                                                
+
+VIN               MAKE            MODEL                 YEAR       RATE         
+----------------- --------------- --------------- ---------- ----------         
+   MILEAGE COLOR                                                                
+---------- ----------                                                           
+2FL24673203384SXN Dodge           Grand Caravan         2015         60         
+    100000 silver                                                               
+                                                                                
+
+7 rows selected.
+
+SQL> SELECT * FROM Booking;
+
+ BOOKINGID STARTDATE ENDDATE   CARVIN                CUSTID EMPLOYEESSN         
+---------- --------- --------- ----------------- ---------- -----------         
+        70 22-NOV-17 01-DEC-17 F56789TETTF030413         29   841606366         
+        69 15-DEC-17 28-DEC-17 2E245WB330G1394FF         89   949064604         
+        68 15-OCT-16 01-NOV-16 5BL456REBMUN0NV14         88   367343136         
+        67 01-JUN-16 15-JUN-16 HIT1BYE3803034M21         23   739865735         
+        66 24-MAR-16 29-MAR-17 VROOM62340VR0M229         55   311710664         
+        65 21-FEB-16 28-FEB-17 2FL24673203384SXN          4   567169645         
+        64 24-OCT-15 26-OCT-15 1HL456234050304H1          9   924747806         
+        63 10-FEB-17 23-FEB-17 1HL456234050304H1          9   344276769         
+
+8 rows selected.
+
+SQL> SELECT * FROM Billing;
+
+ BOOKINGID BILLADDRESS                                        AMOUNTOWED        
+---------- -------------------------------------------------- ----------        
+AMOUNTPAID CREDITCARDNUM       CREDITCARD DATEDUE                               
+---------- ------------------- ---------- ---------                             
+        70 6815 Driving Lane                                         630        
+       500 1234567812345678    Visa       01-DEC-17                             
+                                                                                
+        69 9501 Candycane lane                                      1170        
+        50 2234567812345678    Visa       28-NOV-17                             
+                                                                                
+        68 6915 Silverlake rd                                       1190        
+      1000 3234567812345678    Mastercard 01-NOV-16                             
+                                                                                
+
+ BOOKINGID BILLADDRESS                                        AMOUNTOWED        
+---------- -------------------------------------------------- ----------        
+AMOUNTPAID CREDITCARDNUM       CREDITCARD DATEDUE                               
+---------- ------------------- ---------- ---------                             
+        67 5013 48 ave                                              1540        
+      1000 4234567812345678    Visa       15-JUN-16                             
+                                                                                
+        66 4011 Lake Michigan Drive                                  500        
+       500 5234567812345678    Mastercard 29-MAR-17                             
+                                                                                
+        65 4596 Pierce st                                            420        
+       200 6234567812345679    Discover   15-JAN-17                             
+                                                                                
+
+ BOOKINGID BILLADDRESS                                        AMOUNTOWED        
+---------- -------------------------------------------------- ----------        
+AMOUNTPAID CREDITCARDNUM       CREDITCARD DATEDUE                               
+---------- ------------------- ---------- ---------                             
+        64 5162 Garfield rd                                         1000        
+        50 7234567812345678    AMEX       26-OCT-15                             
+                                                                                
+        63 2316 Bear Lake rd                                        6500        
+      3000 8234567812345678    Visa       23-FEB-17                             
+                                                                                
+        64 7546 Peirce st                                           3000        
+       600 9234567812345677    Discover   22-SEP-16                             
+                                                                                
+
+ BOOKINGID BILLADDRESS                                        AMOUNTOWED        
+---------- -------------------------------------------------- ----------        
+AMOUNTPAID CREDITCARDNUM       CREDITCARD DATEDUE                               
+---------- ------------------- ---------- ---------                             
+        65 4940 Lake Michigan Drive                                  220        
+         0 1124567812345678    Mastercard 28-FEB-17                             
+                                                                                
+
+10 rows selected.
+
+SQL> --
+SQL> --
+SQL> -- < The  SQL queries >. Include the following for each query:
+SQL> --1.A comment line stating the query number and the feature(s) it demonstrates e.g. – Q25 – correlated subquery).
+SQL> --2.A comment line stating the query in English.
+SQL> --3.The SQL code for the query.
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q1 - A join involving at least four relations
+SQL> Find the customers who rented a Charger and the employee who booked and cleaned the vehicle.
+SQL> Find the customers first name, last name, ID, and the employee's social securty number
+SQL> */
+SQL> SELECT C.custID, C.firstName, C.lastName, E.employeeSSN
+  2  FROM BOOKING B, CUSTOMER C, EMPLOYEE E, VEHICLE V
+  3  WHERE V.model = 'Charger' AND V.VIN = E.vehicleVIN AND V.VIN = B.carVIN AND
+  4  	   B.custID = C.custID
+  5  ORDER BY C.CustID;
+
+    CUSTID FIRSTNAME       LASTNAME        EMPLOYEESSN                          
+---------- --------------- --------------- -----------                          
+        55 Gray            Shorton           924747806                          
+
+1 row selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q2 - Self-join
+SQL> Find pairs of booking IDs such that the value of the amount paid is more than 50% of the amount owned of the first booking ID (in the pair). The second booking ID in the pair has similar information to the first booking ID. The pairs are listed once only.
+SQL> */
+SQL> SELECT B1.bookingID, B2.bookingID
+  2  FROM   Billing B1, Billing B2
+  3  WHERE  B1.amountPaid > 0.5 * B1.amountOwed AND
+  4  	    B1.amountPaid > B2.amountPaid	AND
+  5  	    B1.bookingID < B2.bookingID;
+
+ BOOKINGID  BOOKINGID                                                           
+---------- ----------                                                           
+        68         70                                                           
+        68         69                                                           
+        67         70                                                           
+        67         69                                                           
+        66         69                                                           
+
+5 rows selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q3 - UNION, INTERSECT, and/or MINUS.
+SQL> For every employee that gave a failure on their latest vehicle
+SQL> inspection and has a salary of more than 100000: Find the employee SSN,
+SQL> first name, and last name.
+SQL> */
+SQL> SELECT employeeSSN, firstName, lastName
+  2  FROM   Employee
+  3  WHERE  salary > 100000
+  4  	    INTERSECT
+  5  SELECT employeeSSN, firstName, lastName
+  6  FROM   Employee
+  7  WHERE  inspectResult = 'Fail';
+
+EMPLOYEESSN FIRSTNAME       LASTNAME                                            
+----------- --------------- ---------------                                     
+  367343136 Juana           Jeannot                                             
+
+1 row selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q4 - SUM, AVG, MAX, and/or MIN
+SQL> Find the maximum, average, and minimum amount owed in every billing process.
+SQL> */
+SQL> SELECT MAX(amountOwed) as maxAmountOwed, AVG(amountOwed) as averageAmountOwed, MIN(amountOwed) as minAmountOwed
+  2  FROM   Billing;
+
+MAXAMOUNTOWED AVERAGEAMOUNTOWED MINAMOUNTOWED                                   
+------------- ----------------- -------------                                   
+         6500              1617           220                                   
+
+1 row selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q5 - GROUP BY, HAVING, and ORDER BY,
+SQL> For every vehicle that has more than 1 employee working on it:
+SQL> Find the Vehicle's VIN number and the number of employees working on it.
+SQL> Order by the vehicle VIN.
+SQL> */
+SQL> SELECT   E.vehicleVIN, COUNT(*)
+  2  FROM     Employee E
+  3  GROUP BY E.vehicleVIN
+  4  HAVING   COUNT(*) > 1
+  5  ORDER BY E.vehicleVIN;
+
+VEHICLEVIN          COUNT(*)                                                    
+----------------- ----------                                                    
+1HL456234050304H1          2                                                    
+2E245WB330G1394FF          2                                                    
+HIT1BYE3803034M21          2                                                    
+
+3 rows selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q6 - A correlated subquery
+SQL> For every customer that has booked a vehicle and payed with a VISA: Find
+SQL> the customer ID, first name, last name
+SQL> */
+SQL> SELECT C.custID, C.firstName, C.lastName
+  2  FROM Customer C, Booking B1
+  3  WHERE C.custID =  B1.custID AND
+  4  	   EXISTS (SELECT *
+  5  		   FROM Billing B2
+  6  		   WHERE B1.bookingID = B2.bookingID AND
+  7  			 B2.creditCardType = 'Visa')
+  8  ORDER BY C.custID;
+
+    CUSTID FIRSTNAME       LASTNAME                                             
+---------- --------------- ---------------                                      
+         9 Meriel          Marland                                              
+        23 Con             Goodhand                                             
+        29 John            von Grollmann                                        
+        89 Crawford        Dowers                                               
+
+4 rows selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q7 - Non-correlated subquery
+SQL> For every customer who did not booked an Audi: Find the customer's ID, first and last name, driver license and date of birth. Sort the results by the customer's last name.
+SQL> */
+SQL> SELECT C.custID, C.firstName, C.lastName, C.driverLicense, C.DOB
+  2  FROM   Customer C
+  3  WHERE  C.custID NOT IN
+  4  	    (SELECT B.custID
+  5  	     FROM   Booking B, vehicle V
+  6  	     WHERE  B.carVIN = V.vin AND V.make = 'Audi')
+  7  ORDER BY C.lastName;
+
+    CUSTID FIRSTNAME       LASTNAME        DRIVERLICENSE        DOB             
+---------- --------------- --------------- -------------------- ---------       
+        98 Tim             Daile           B603397588072        20-JUN-65       
+        89 Crawford        Dowers          B676624379988        22-MAR-55       
+        23 Con             Goodhand        B773290897872        10-OCT-65       
+        88 Lars            Ingram          B115423769456        29-APR-58       
+        54 Hilarius        Ranyard         B117685754408        10-SEP-73       
+         4 Carter          Redferne        B248616467291        08-MAR-68       
+        55 Gray            Shorton         B139745073325        03-JUN-57       
+        56 Gena            Wilkowski       B952432544942        24-MAY-52       
+        29 John            von Grollmann   B261462061547        22-AUG-53       
+
+9 rows selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q8 - Relational DIVISION query
+SQL> For every employee who works on every Audi vehicle: Find the employee's ssn, last name, first name, sex, date of birth, salary, the inspection date and its consequent result. Sort the results by the employee's last name.
+SQL> */
+SQL> SELECT E.employeeSSN, E.lastName, E.firstName, E.sex, E.DOB, E.salary, E.inspectDate, E.inspectResult
+  2  FROM   employee E
+  3  WHERE  NOT EXISTS (
+  4  	    (SELECT V.vin
+  5  	     FROM   Vehicle V
+  6  	     WHERE  V.make = 'Audi')
+  7  	    MINUS
+  8  	    (SELECT E.vehicleVIN
+  9  	     FROM   Vehicle V
+ 10  	     WHERE  E.vehicleVIN = V.vin))
+ 11  ORDER BY E.lastName;
+
+EMPLOYEESSN LASTNAME        FIRSTNAME       SEX    DOB           SALARY         
+----------- --------------- --------------- ------ --------- ----------         
+INSPECTDA INSP                                                                  
+--------- ----                                                                  
+  739865735 McGuggy         Donielle        Female 09-SEP-71      59398         
+14-JUL-17 Pass                                                                  
+                                                                                
+  841606366 Sumption        Hewett          Male   26-JUL-67     109381         
+22-MAY-17 Pass                                                                  
+                                                                                
+
+2 rows selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q9 - Outer join query
+SQL> Find the employee's social security name, first and last name for every employee. Also show the booking ID and the its vehicleVIN that the employees are responsible for.
+SQL> */
+SQL> SELECT E.employeeSSN, E.firstName, E.lastName, B.bookingID, B.carVIN
+  2  FROM   Employee E LEFT OUTER JOIN Booking B ON E.employeeSSN = B.employeeSSN;
+
+EMPLOYEESSN FIRSTNAME       LASTNAME         BOOKINGID CARVIN                   
+----------- --------------- --------------- ---------- -----------------        
+  841606366 Hewett          Sumption                70 F56789TETTF030413        
+  949064604 Mack            Gauld                   69 2E245WB330G1394FF        
+  367343136 Juana           Jeannot                 68 5BL456REBMUN0NV14        
+  739865735 Donielle        McGuggy                 67 HIT1BYE3803034M21        
+  311710664 Miller          Guinan                  66 VROOM62340VR0M229        
+  567169645 Shir            Bridgwater              65 2FL24673203384SXN        
+  924747806 Edouard         Buckthorpe              64 1HL456234050304H1        
+  344276769 Riley           McKeighen               63 1HL456234050304H1        
+  599405184 Fenelia         Lambis                                              
+  713782826 Fletcher        Ingerfield                                          
+
+10 rows selected.
+
+SQL> ----
+SQL> --
+SQL> --
+SQL> /* Q10 - RANK query
+SQL> Find the rank of the salary 59397.76 among all salaries.
+SQL> */
+SQL> SELECT RANK (59397.76) WITHIN GROUP
+  2  	    (ORDER BY salary) "Rank of salary 59397.76"
+  3  FROM   Employee;
+
+Rank of salary 59397.76                                                         
+-----------------------                                                         
+                      3                                                         
+
+1 row selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> /* Q11 - Top-N query
+SQL> Find the employee's social security number, first and last name, sex, date of birth, and salary of the three highest paid employees.
+SQL> */
+SQL> SELECT employeeSSN, firstName, lastName, sex, DOB, salary
+  2  FROM   (SELECT * FROM Employee ORDER BY salary DESC)
+  3  WHERE  ROWNUM < 4;
+
+EMPLOYEESSN FIRSTNAME       LASTNAME        SEX    DOB           SALARY         
+----------- --------------- --------------- ------ --------- ----------         
+  344276769 Riley           McKeighen       Male   01-AUG-69     147753         
+  713782826 Fletcher        Ingerfield      Male   05-DEC-65     133675         
+  367343136 Juana           Jeannot         Female 14-OCT-99     132272         
+
+3 rows selected.
+
+SQL> --
+SQL> --
+SQL> --
+SQL> -- < The insert/delete/update statements to test the enforcement of ICs>
+SQL> --Include the following items for every IC that you test (Important: see the next section titled “Submit a final report” regarding which ICs to test).
+SQL> --A comment line stating: Testing: < IC name>
+SQL> --A SQL INSERT, DELETE, or UPDATE that will test the IC.
+SQL> --
+SQL> --TESTING: cIC1_KEY Attempt to insert a new Customer with an existing Customer ID
+SQL> INSERT INTO Customer VALUES (29, 'Cade',	  'Baker', 'B364411226547', TO_DATE('05/16/1980', 'MM/DD/YYYY'));
+INSERT INTO Customer VALUES (29, 'Cade',     'Baker', 'B364411226547', TO_DATE('05/16/1980', 'MM/DD/YYYY'))
+*
+ERROR at line 1:
+ORA-00001: unique constraint (BAKERCAD.CIC1_KEY) violated 
+
+
+SQL> --
+SQL> --TESTING: bIC2_FKEY Attempt to insert a booking with a car vin number that doesn't exist
+SQL> INSERT INTO Booking VALUES (71, TO_DATE('12/04/2017', 'MM/DD/YYYY'), TO_DATE('12/10/2017', 'MM/DD/YYYY'),
+  2  							     'F884548IO335208E2', 29, '841606366');
+INSERT INTO Booking VALUES (71, TO_DATE('12/04/2017', 'MM/DD/YYYY'), TO_DATE('12/10/2017', 'MM/DD/YYYY'),
+*
+ERROR at line 1:
+ORA-02291: integrity constraint (BAKERCAD.BIC2_FKEY) violated - parent key not 
+found 
+
+
+SQL> --
+SQL> --TESTING: biIC5_VALIDAMT: Attempt to insert a negative amount paid for the billing
+SQL> INSERT INTO Billing VALUES (70, '6815 Driving Lane',	 630, -20,  '1234567812345678', 'Visa',
+  2  							     TO_DATE('12/04/2017','MM/DD/YYYY'));
+INSERT INTO Billing VALUES (70, '6815 Driving Lane',        630, -20,  '1234567812345678', 'Visa',
+*
+ERROR at line 1:
+ORA-02290: check constraint (BAKERCAD.BIIC5_VALIDAMT) violated 
+
+
+SQL> --
+SQL> --TESTING: vIC2_AUDIRATE: Attempt to update the rate of renting an Audi to less than $500
+SQL> UPDATE Vehicle SET rate= 480 WHERE vin='1HL456234050304H1';
+UPDATE Vehicle SET rate= 480 WHERE vin='1HL456234050304H1'
+*
+ERROR at line 1:
+ORA-02290: check constraint (BAKERCAD.VIC2_AUDIRATE) violated 
+
+
+SQL> --
+SQL> --
+SQL> COMMIT;
+
+Commit complete.
+
+SQL> --
+SQL> SPOOL OFF
